@@ -1,0 +1,3 @@
+app/database/creds.json
+*/__pycache__/
+venv
