@@ -31,6 +31,14 @@ async def get_pandels():
         data = d.to_dict()
         # ensure id in doc
         data["id"] = int(data.get("id", d.id)) if isinstance(data.get("id"), int) else int(d.id) if str(d.id).isdigit() else data.get("id")
+        
+        # Ensure coordinates have correct format (lng not long)
+        if "coordinates" in data and isinstance(data["coordinates"], dict):
+            coords = data["coordinates"]
+            if "long" in coords and "lng" not in coords:
+                coords["lng"] = coords["long"]
+                del coords["long"]
+        
         items.append(Pandel(**data))
     return items
 
@@ -113,9 +121,12 @@ async def get_pandel_by_location(lat: float, long: float, radius: float = 1.0):
     for d in docs:
         data = d.to_dict()
         coords = data.get("coordinates") or {}
-        plat, plon = coords.get("lat"), coords.get("long")
+        plat, plon = coords.get("lat"), coords.get("lng") or coords.get("long")  # Support both lng and long
         if isinstance(plat, (int, float)) and isinstance(plon, (int, float)):
             if haversine(lat, long, float(plat), float(plon)) <= radius:
+                # Ensure coordinates have correct format
+                data["coordinates"] = {"lat": float(plat), "lng": float(plon)}
+                data["id"] = int(data.get("id", d.id)) if isinstance(data.get("id"), int) else int(d.id) if str(d.id).isdigit() else data.get("id")
                 result.append(Pandel(**data))
     return result
 

@@ -5,7 +5,7 @@ from firebase_admin import credentials, firestore
 # Resolve creds.json relative to this file so it works regardless of CWD
 _creds_path = Path(__file__).parent / "creds.json"
 
-# Initialize the default Firebase app once
+
 try:
 	firebase_admin.get_app()
 except ValueError:

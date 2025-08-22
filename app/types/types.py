@@ -6,11 +6,11 @@ class Pandel(BaseModel):
     name: str
     description: str
     average_rating: float
-    coordinates: dict
+    coordinates: dict  # Should contain 'lat' and 'lng' (not 'long')
     banner_image: str
     created_at: str
     updated_at: str
-    images: List[str]
+    images: List[str]  # Array of Cloudinary public IDs
     category: str
     popularity: float
     avatar_image: str
