@@ -2,9 +2,10 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
-from app.types.types import Pandel
+from app.types.types import Pandel, Review
 from app.database.firebase  import db
 from app.services.image_scraper import ImageScraper
+import time
 
 app = FastAPI()
 
@@ -233,3 +234,89 @@ async def get_scrape_status(pandel_id: int):
         "total_images": len(images),
         "images": images
     }
+
+
+@app.post("/pandel/{pandel_id}/reviews", response_model=Review)
+async def add_review(pandel_id: int, review_data: dict):
+    """Add a review to a pandel"""
+    # Check if pandel exists
+    doc_ref = db.collection("pandels").document(str(pandel_id))
+    doc = doc_ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="Pandel not found")
+    
+    # Create review object
+    review = Review(
+        id=str(int(time.time() * 1000)),  # Use timestamp as ID
+        title=review_data.get("title", ""),
+        body=review_data.get("body", ""),
+        reviewerName=review_data.get("reviewerName", ""),
+        date=review_data.get("date", ""),
+        rating=review_data.get("rating", 0),
+        reviewerAvatar=review_data.get("reviewerAvatar")
+    )
+    
+    # Get current pandel data
+    pandel_data = doc.to_dict()
+    current_reviews = pandel_data.get("reviews", [])
+    
+    # Add new review
+    current_reviews.append(review.dict())
+    
+    # Calculate new average rating
+    total_rating = sum(r.get("rating", 0) for r in current_reviews)
+    average_rating = total_rating / len(current_reviews) if current_reviews else 0
+    
+    # Update pandel with new review and average rating
+    doc_ref.update({
+        "reviews": current_reviews,
+        "average_rating": average_rating
+    })
+    
+    return review
+
+
+@app.get("/pandel/{pandel_id}/reviews", response_model=List[Review])
+async def get_reviews(pandel_id: int):
+    """Get all reviews for a pandel"""
+    doc = db.collection("pandels").document(str(pandel_id)).get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="Pandel not found")
+    
+    data = doc.to_dict()
+    reviews_data = data.get("reviews", [])
+    
+    return [Review(**review) for review in reviews_data]
+
+
+@app.delete("/pandel/{pandel_id}/reviews/{review_id}")
+async def delete_review(pandel_id: int, review_id: str):
+    """Delete a review from a pandel"""
+    doc_ref = db.collection("pandels").document(str(pandel_id))
+    doc = doc_ref.get()
+    if not doc.exists:
+        raise HTTPException(status_code=404, detail="Pandel not found")
+    
+    pandel_data = doc.to_dict()
+    reviews = pandel_data.get("reviews", [])
+    
+    # Filter out the review to delete
+    updated_reviews = [r for r in reviews if r.get("id") != review_id]
+    
+    if len(updated_reviews) == len(reviews):
+        raise HTTPException(status_code=404, detail="Review not found")
+    
+    # Recalculate average rating
+    if updated_reviews:
+        total_rating = sum(r.get("rating", 0) for r in updated_reviews)
+        average_rating = total_rating / len(updated_reviews)
+    else:
+        average_rating = 0
+    
+    # Update pandel
+    doc_ref.update({
+        "reviews": updated_reviews,
+        "average_rating": average_rating
+    })
+    
+    return {"detail": "Review deleted successfully"}
