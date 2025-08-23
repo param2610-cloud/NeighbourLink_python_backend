@@ -3,7 +3,7 @@ import json, re
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-creds_path = Path(__file__).parent / "creds_raw.json"
+creds_path = Path(__file__).parent / "creds.json"
 
 # Load raw JSON text
 raw_text = creds_path.read_text()
